@@ -11,9 +11,9 @@ func init() {
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{},
-		ResourcesMap: map[string]*schema.Resource{},
-		DataSourcesMap: map[string]*schema.Resource{
-			"tlsext_gpg_armor_format": dataSourceGpgArmorFormat(),
+		ResourcesMap: map[string]*schema.Resource{
+			"tlsext_pgp_private_key": resourcePgpPrivateKey(),
 		},
+		DataSourcesMap: map[string]*schema.Resource{},
 	}
 }

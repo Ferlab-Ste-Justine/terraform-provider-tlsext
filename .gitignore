@@ -1,0 +1,7 @@
+test-environment/.terraform
+test-environment/.terraform.lock.hcl
+test-environment/terraform.tfvars
+test-environment/terraform.tfstate
+test-environment/terraform.tfstate.backup
+test-environment/keys/
+terraform-provider-tlsext

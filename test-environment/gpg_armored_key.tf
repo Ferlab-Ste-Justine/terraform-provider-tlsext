@@ -3,11 +3,14 @@ resource "tls_private_key" "rsa" {
   rsa_bits  = 4096
 }
 
+resource "time_static" "gpg_rsa" {}
+
 data "tlsext_gpg_armor_format" "rsa" {
     private_key = tls_private_key.rsa.private_key_pem_pkcs8
+    algorithm = "rsa"
+    timestamp = time_static.gpg_rsa.id
     name = "Eric Vallee"
     email = "eric_vallee@webificservices.com"
-    algorithm = "rsa"
 }
 
 resource "local_file" "rsa_pub" {

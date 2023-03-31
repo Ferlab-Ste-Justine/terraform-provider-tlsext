@@ -42,6 +42,12 @@ func dataSourceGpgArmorFormat() *schema.Resource {
 					return []string{}, []error{}
 				},
 			},
+			"timestamp": {
+				Description: "Timestamp needed by pgp.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validation.IsRFC3339Time,
+			},
 			"name": {
 				Description: "Name to associate with the gpg key.",
 				Type:         schema.TypeString,
@@ -82,26 +88,32 @@ func GetParsedKeyFromPemFormat(privatePemKey string) (any, error) {
 	return key, nil
 }
 
-func GetOpenPgpEntityFromParsedKey(key any, algorithm string, name string, email string) (*openpgp.Entity, *packet.Config, error) {
+func GetOpenPgpEntityFromParsedKey(key any, algorithm string, name string, email string, timestamp time.Time) (*openpgp.Entity, *packet.Config, error) {
 	config := &packet.Config{DefaultHash: crypto.SHA256}
 	entity, entityErr := openpgp.NewEntity(name, "", email, config)
 	if entityErr != nil {
 		return nil, nil, errors.New(fmt.Sprintf("Failed to build formated keys: %s.", entityErr.Error()))
 	}
 
-	now := time.Now()
 	if algorithm == "rsa" {
 		rsaKey := key.(*rsa.PrivateKey)
 		rsaPubKey := rsaKey.Public().(*rsa.PublicKey)
-		entity.PrimaryKey = packet.NewRSAPublicKey(now, rsaPubKey)
-		entity.PrivateKey = packet.NewRSAPrivateKey(now, rsaKey)
+		entity.PrimaryKey = packet.NewRSAPublicKey(timestamp, rsaPubKey)
+		entity.PrivateKey = packet.NewRSAPrivateKey(timestamp, rsaKey)
 	} else {
 		ecdsaKey := key.(*ecdsa.PrivateKey)
 		ecdsaPubKey := ecdsaKey.Public().(*ecdsa.PublicKey)
 		opengpgEcdsaKey := opengpgEcdsa.PrivateKey{PublicKey: opengpgEcdsa.PublicKey{X: (*ecdsaKey).PublicKey.X, Y: (*ecdsaKey).PublicKey.Y}, D: (*ecdsaKey).D}
 		opengpgEcdsaPubKey := opengpgEcdsa.PublicKey{X: (*ecdsaPubKey).X, Y: (*ecdsaPubKey). Y}
-		entity.PrimaryKey = packet.NewECDSAPublicKey(now, &opengpgEcdsaPubKey)
-		entity.PrivateKey = packet.NewECDSAPrivateKey(now, &opengpgEcdsaKey)
+		entity.PrimaryKey = packet.NewECDSAPublicKey(timestamp, &opengpgEcdsaPubKey)
+		entity.PrivateKey = packet.NewECDSAPrivateKey(timestamp, &opengpgEcdsaKey)
+	}
+
+	for _, id := range entity.Identities {
+		signatureErr := id.SelfSignature.SignUserId(id.UserId.Id, entity.PrimaryKey, entity.PrivateKey, config)
+		if signatureErr != nil {
+			return nil, nil, errors.New(fmt.Sprintf("Failed to self sign identity: %s.", signatureErr.Error()))
+		}
 	}
 
 	return entity, config, nil
@@ -152,27 +164,33 @@ func GetArmorEncodedKeyFromEntity(entity *openpgp.Entity, config *packet.Config,
 func dataSourceGpgArmorFormatRead(d *schema.ResourceData, meta interface{}) error {
 	privateKeyPem := d.Get("private_key").(string)
 	algorithm := d.Get("algorithm").(string)
+	timestamp := d.Get("timestamp").(string)
 	name := d.Get("name").(string)
 	email := d.Get("email").(string)
+
+	parsedTimestamp, timeerr := time.Parse(time.RFC3339, timestamp)
+	if timeerr != nil {
+		return errors.New(fmt.Sprintf("Failed to parse timestamp: %s.", timeerr.Error()))
+	}
 
 	key, keyErr := GetParsedKeyFromPemFormat(privateKeyPem)
 	if keyErr != nil {
 		return keyErr
 	}
 
-	entity, config, entityErr := GetOpenPgpEntityFromParsedKey(key, algorithm, name, email)
+	entity, config, entityErr := GetOpenPgpEntityFromParsedKey(key, algorithm, name, email, parsedTimestamp)
 	if entityErr != nil {
 		return entityErr
-	}
-
-	pubKey, pubKeyErr := GetArmorEncodedKeyFromEntity(entity, config, false)
-	if pubKeyErr != nil {
-		return pubKeyErr
 	}
 
 	priKey, priKeyErr := GetArmorEncodedKeyFromEntity(entity, config, true)
 	if priKeyErr != nil {
 		return priKeyErr
+	}
+
+	pubKey, pubKeyErr := GetArmorEncodedKeyFromEntity(entity, config, false)
+	if pubKeyErr != nil {
+		return pubKeyErr
 	}
 
 	d.Set("gpg_armor_private_key", priKey)

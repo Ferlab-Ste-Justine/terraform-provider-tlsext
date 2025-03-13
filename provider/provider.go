@@ -14,6 +14,8 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"tlsext_pgp_private_key": resourcePgpPrivateKey(),
 		},
-		DataSourcesMap: map[string]*schema.Resource{},
+		DataSourcesMap: map[string]*schema.Resource{
+			"tlsext_pem_chain": dataPemChain(),
+		},
 	}
 }

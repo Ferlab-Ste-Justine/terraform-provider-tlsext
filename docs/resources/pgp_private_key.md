@@ -33,19 +33,17 @@ resource "tlsext_pgp_private_key" "rsa" {
 
 ### Required
 
-- **email** (String) Email to associate with the gpg key.
-- **name** (String) Name to associate with the gpg key.
-- **private_key** (String) Private key to convert in pem format.
-- **timestamp** (String) Timestamp needed by pgp.
+- `email` (String) Email to associate with the gpg key.
+- `name` (String) Name to associate with the gpg key.
+- `private_key` (String) Private key to convert in pem format.
+- `timestamp` (String) Timestamp needed by pgp.
 
 ### Optional
 
-- **algorithm** (String) Algorithm of the encryption. The following values are currently supported: rsa.
-- **id** (String) The ID of this resource.
+- `algorithm` (String) Algorithm of the encryption. The following values are currently supported: rsa.
 
 ### Read-Only
 
-- **private_key_gpg_armor** (String) Private key in gpg armor format.
-- **public_key_gpg_armor** (String) Public key in gpg armor format.
-
-
+- `id` (String) The ID of this resource.
+- `private_key_gpg_armor` (String) Private key in gpg armor format.
+- `public_key_gpg_armor` (String) Public key in gpg armor format.
